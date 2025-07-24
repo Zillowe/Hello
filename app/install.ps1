@@ -1,144 +1,135 @@
-#!/usr/bin/env pwsh
+#Requires -Version 5.1
+<#
+.SYNOPSIS
+    Installs or updates the 'hello' command-line tool.
+.DESCRIPTION
+    This script downloads the latest release of 'hello' for the appropriate
+    Windows architecture (amd64 or arm64), extracts the executable, and adds
+    it to the user's PATH for easy access from the command line.
+.NOTES
+    Author: ZilloweZ
+    Version: 1.0
+#>
 
-param()
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
 
-begin {
-    $ErrorActionPreference = 'Stop'
-    $ProgressPreference = 'SilentlyContinue'
+$githubRepo = "Zillowe/Hello"
+$binName = "hello"
+$installDir = "$env:USERPROFILE\.local\bin"
+$commentLine = "# Hello PATH addition"
 
-    $GITHUB_REPO = "Zillowe/Hello"
-    $BIN_NAME = "hello"
+function Write-Info {
+    param([string]$Message)
+    Write-Host "[INFO] $Message" -ForegroundColor Cyan
+}
 
-    function Write-Info($Message) {
-        Write-Host "[INFO] $Message" -ForegroundColor Cyan
-    }
-    function Write-Warn($Message) {
-        Write-Host "[WARN] $Message" -ForegroundColor Yellow
-    }
-    function Write-Error($Message) {
-        Write-Host "[ERROR] $Message" -ForegroundColor Red
-        throw $Message
+function Write-Warn {
+    param([string]$Message)
+    Write-Host "[WARN] $Message" -ForegroundColor Yellow
+}
+
+function Write-Error {
+    param([string]$Message)
+    Write-Host "[ERROR] $Message" -ForegroundColor Red
+    exit 1
+}
+
+function Test-Command {
+    param([string]$Command)
+    if (-not (Get-Command $Command -ErrorAction SilentlyContinue)) {
+        Write-Error "'$Command' command is required but not found. Please install it."
     }
 }
 
-process {
-    Write-Info "Fetching the latest release tag from GitHub API for '$GITHUB_REPO'..."
-    try {
-        $latestRelease = Invoke-RestMethod -Uri "https://api.github.com/repos/$GITHUB_REPO/releases/latest"
-        $LATEST_TAG = $latestRelease.tag_name
-        if (-not $LATEST_TAG) {
-            Write-Error "Could not determine latest release tag. The API response may have changed."
-        }
-        Write-Info "Latest tag found: $LATEST_TAG"
-    }
-    catch {
-        Write-Error "Failed to fetch release data from GitHub. Please check the repository path '$GITHUB_REPO' and your network connection."
-    }
+Test-Command "curl"
+Test-Command "Expand-Archive"
 
-    $os = "windows"
-    $arch = switch ($env:PROCESSOR_ARCHITECTURE) {
-        "AMD64" { "amd64" }
-        "ARM64" { "arm64" }
-        Default { Write-Error "Unsupported processor architecture: $env:PROCESSOR_ARCHITECTURE" }
-    }
-
-    $INSTALL_DIR = Join-Path -Path $env:LOCALAPPDATA -ChildPath 'Programs\hello'
-    $INSTALL_PATH = Join-Path -Path $INSTALL_DIR -ChildPath "$BIN_NAME.exe"
-
-    $REPO_BASE_URL = "https://github.com/$GITHUB_REPO/releases/download/$LATEST_TAG"
-    $TARGET_ARCHIVE = "$BIN_NAME-$os-$arch.zip"
-    $DOWNLOAD_URL = "$REPO_BASE_URL/$TARGET_ARCHIVE"
-    $CHECKSUM_URL = "$REPO_BASE_URL/checksums.txt"
-
-    $TEMP_DIR = Join-Path -Path $env:TEMP -ChildPath ([System.Guid]::NewGuid().ToString())
-    New-Item -ItemType Directory -Path $TEMP_DIR -Force | Out-Null
-    $TEMP_ARCHIVE = Join-Path -Path $TEMP_DIR -ChildPath $TARGET_ARCHIVE
-    $TEMP_CHECKSUMS = Join-Path -Path $TEMP_DIR -ChildPath "checksums.txt"
-
-    Write-Info "Installing/Updating Hello for $os ($arch)..."
-    Write-Info "Target: $INSTALL_PATH"
-
-    if (-not (Test-Path -Path $INSTALL_DIR)) {
-        Write-Info "Creating installation directory: $INSTALL_DIR"
-        New-Item -ItemType Directory -Path $INSTALL_DIR -Force | Out-Null
-    }
-
-    Write-Info "Downloading Hello from: $DOWNLOAD_URL"
-    try {
-        Invoke-WebRequest -Uri $DOWNLOAD_URL -OutFile $TEMP_ARCHIVE
-        Write-Info "Download successful to $TEMP_ARCHIVE"
-    }
-    catch {
-        Remove-Item -Path $TEMP_DIR -Recurse -Force
-        Write-Error "Download failed. Please check the URL and your connection."
-    }
-
-    Write-Info "Verifying checksum..."
-    try {
-        Invoke-WebRequest -Uri $CHECKSUM_URL -OutFile $TEMP_CHECKSUMS
-    }
-    catch {
-        Remove-Item -Path $TEMP_DIR -Recurse -Force
-        Write-Error "Failed to download checksums file: $CHECKSUM_URL"
-    }
-
-    $expectedHash = (Get-Content $TEMP_CHECKSUMS | Select-String -Pattern $TARGET_ARCHIVE).Line.Split(' ')[0]
-    if (-not $expectedHash) {
-        Remove-Item -Path $TEMP_DIR -Recurse -Force
-        Write-Error "Could not find checksum for '$TARGET_ARCHIVE' in the checksums file."
-    }
-
-    $actualHash = (Get-FileHash -Path $TEMP_ARCHIVE -Algorithm SHA256).Hash.ToLower()
-
-    if ($actualHash -ne $expectedHash) {
-        Remove-Item -Path $TEMP_DIR -Recurse -Force
-        Write-Error "Checksum mismatch! The downloaded file may be corrupt or tampered with."
-    }
-    Write-Info "Checksum verified successfully."
-
-    if (Test-Path -Path $INSTALL_PATH) {
-        Write-Info "Removing existing binary at $INSTALL_PATH..."
-        Remove-Item -Path $INSTALL_PATH -Force
-    }
-
-    Write-Info "Extracting binary..."
-    try {
-        Expand-Archive -Path $TEMP_ARCHIVE -DestinationPath $TEMP_DIR
-        Write-Info "Extraction successful."
-    }
-    catch {
-        Remove-Item -Path $TEMP_DIR -Recurse -Force
-        Write-Error "Extraction failed. The archive may be corrupt."
-    }
-
-    $EXTRACTED_BINARY = Join-Path -Path $TEMP_DIR -ChildPath "$BIN_NAME.exe"
-    if (-not (Test-Path -Path $EXTRACTED_BINARY)) {
-        Remove-Item -Path $TEMP_DIR -Recurse -Force
-        Write-Error "Could not find '$BIN_NAME.exe' in the extracted contents."
-    }
-
-    Write-Info "Moving binary to $INSTALL_PATH..."
-    Move-Item -Path $EXTRACTED_BINARY -Destination $INSTALL_PATH
-
-    Write-Info "Checking if '$INSTALL_DIR' is in PATH..."
-    $currentUserPath = [System.Environment]::GetEnvironmentVariable('Path', 'User')
-    if ($currentUserPath -notlike "*$INSTALL_DIR*") {
-        Write-Warn "'$INSTALL_DIR' is not found in your user PATH."
-        Write-Info "Adding it to your user PATH environment variable..."
-        $newPath = "$INSTALL_DIR;$currentUserPath"
-        [System.Environment]::SetEnvironmentVariable('Path', $newPath, 'User')
-        Write-Info "Successfully updated PATH. Please restart your PowerShell session for the changes to take effect."
-    } else {
-        Write-Info "'$INSTALL_DIR' is already in your PATH."
-    }
-    Write-Host ""
-    Write-Info "Hello ($TARGET_ARCHIVE) installed/updated successfully to: $INSTALL_PATH"
-    Write-Info "Run 'hello --version' in a new terminal to verify."
+Write-Info "Fetching the latest release tag from GitHub API..."
+try {
+    $latestRelease = Invoke-RestMethod -Uri "https://api.github.com/repos/$githubRepo/releases/latest"
+    $latestTag = $latestRelease.tag_name
+}
+catch {
+    Write-Error "Could not fetch the latest release tag. Please check the repository path and network."
 }
 
-end {
-    if (Test-Path -Path $TEMP_DIR) {
-        Remove-Item -Path $TEMP_DIR -Recurse -Force
-    }
-    Write-Info "Installation complete."
+if (-not $latestTag) {
+    Write-Error "Could not fetch the latest release tag. Please check the repository path and network."
 }
+Write-Info "Latest tag found: $latestTag"
+
+$os = "windows"
+$arch = switch ($env:PROCESSOR_ARCHITECTURE) {
+    "AMD64" { "amd64" }
+    "ARM64" { "arm64" }
+    default { Write-Error "Unsupported Architecture: $env:PROCESSOR_ARCHITECTURE" }
+}
+
+$repoBaseUrl = "https://github.com/$githubRepo/releases/download/$latestTag"
+$targetArchive = "hello-$os-$arch.zip"
+$downloadUrl = "$repoBaseUrl/$targetArchive"
+$installPath = Join-Path -Path $installDir -ChildPath "$binName.exe"
+
+$tempDir = New-Item -ItemType Directory -Path (Join-Path $env:TEMP ([System.Guid]::NewGuid().ToString()))
+$tempArchive = Join-Path -Path $tempDir -ChildPath $targetArchive
+
+Write-Info "Installing/Updating Hello for $os ($arch)..."
+Write-Info "Target: $installPath"
+
+if (-not (Test-Path -Path $installDir)) {
+    Write-Info "Creating installation directory: $installDir"
+    New-Item -ItemType Directory -Path $installDir | Out-Null
+}
+
+Write-Info "Downloading Hello from: $downloadUrl"
+try {
+    Invoke-WebRequest -Uri $downloadUrl -OutFile $tempArchive -UseBasicParsing
+    Write-Info "Download successful to $tempArchive"
+}
+catch {
+    Remove-Item -Path $tempArchive -Force -ErrorAction SilentlyContinue
+    Write-Error "Download failed. Please check the URL and your connection."
+}
+
+if (Test-Path -Path $installPath) {
+    Write-Info "Removing existing binary at $installPath..."
+    Remove-Item -Path $installPath -Force -ErrorAction SilentlyContinue
+}
+
+Write-Info "Extracting binary..."
+try {
+    Expand-Archive -Path $tempArchive -DestinationPath $tempDir -Force
+    Write-Info "Extraction successful."
+}
+catch {
+    Remove-Item -Path $tempDir -Recurse -Force
+    Write-Error "Extraction failed."
+}
+
+$extractedBinary = Join-Path -Path $tempDir -ChildPath "hello.exe"
+if (-not (Test-Path -Path $extractedBinary)) {
+    Remove-Item -Path $tempDir -Recurse -Force
+    Write-Error "Could not find 'hello.exe' in the extracted contents."
+}
+
+Write-Info "Moving binary to $installPath..."
+Move-Item -Path $extractedBinary -Destination $installPath
+
+Remove-Item -Path $tempDir -Recurse -Force
+
+Write-Info "Checking if '$installDir' is in PATH..."
+$userPath = [System.Environment]::GetEnvironmentVariable("Path", "User")
+if ($userPath -notlike "*$installDir*") {
+    Write-Warn "'$installDir' is not found in your current user PATH."
+    Write-Info "Adding it to your user PATH..."
+    $newPath = "$userPath;$installDir"
+    [System.Environment]::SetEnvironmentVariable("Path", $newPath, "User")
+    Write-Info "Successfully updated user PATH. Please restart your shell for the changes to take effect."
+}
+else {
+    Write-Info "'$installDir' is already in your PATH."
+}
+
+Write-Host ""
+Write-Info "Hello ($targetArchive) installed/updated successfully to: $installPath"

@@ -59,12 +59,10 @@ fi
 REPO_BASE_URL="https://github.com/${GITHUB_REPO}/releases/download/${LATEST_TAG}"
 TARGET_ARCHIVE="hello-${os}-${arch}.tar.xz"
 DOWNLOAD_URL="${REPO_BASE_URL}/${TARGET_ARCHIVE}"
-CHECKSUM_URL="${REPO_BASE_URL}/checksums.txt"
 INSTALL_PATH="${INSTALL_DIR}/${BIN_NAME}"
 
 TEMP_DIR=$(mktemp -d)
 TEMP_ARCHIVE="${TEMP_DIR}/${TARGET_ARCHIVE}"
-TEMP_CHECKSUMS="${TEMP_DIR}/checksums.txt"
 
 info "Installing/Updating Hello for ${os}(${arch})..."
 info "Target: ${INSTALL_PATH}"
@@ -80,36 +78,6 @@ if curl --fail --location --progress-bar --output "$TEMP_ARCHIVE" "$DOWNLOAD_URL
 else
     rm -f "$TEMP_ARCHIVE"
     error "Download failed. Please check the URL and your connection."
-fi
-
-info "Verifying checksum..."
-if ! curl --fail --location --progress-bar --output "$TEMP_CHECKSUMS" "$CHECKSUM_URL"; then
-    rm -rf "$TEMP_DIR"
-    error "Failed to download checksums file: ${CHECKSUM_URL}"
-fi
-
-CHECKSUM_CMD=""
-if command -v shasum >/dev/null 2>&1; then
-    CHECKSUM_CMD="shasum -a 256"
-elif command -v sha256sum >/dev/null 2>&1; then
-    CHECKSUM_CMD="sha256sum"
-else
-    error "'shasum' or 'sha256sum' command is required for verification. Please install it."
-fi
-
-expected_hash=$(grep "$TARGET_ARCHIVE" "$TEMP_CHECKSUMS" | awk '{print $1}')
-if [ -z "$expected_hash" ]; then
-    rm -rf "$TEMP_DIR"
-    error "Could not find checksum for '${TARGET_ARCHIVE}' in the checksums file."
-fi
-
-actual_hash=$($CHECKSUM_CMD "$TEMP_ARCHIVE" | awk '{print $1}')
-
-if [ "$actual_hash" != "$expected_hash" ]; then
-    rm -rf "$TEMP_DIR"
-    error "Checksum mismatch! The downloaded file may be corrupt or tampered with."
-else
-    info "Checksum verified successfully."
 fi
 
 if [ -f "$INSTALL_PATH" ]; then
@@ -181,4 +149,3 @@ fi
 
 echo ""
 info "Hello (${TARGET_ARCHIVE}) installed/updated successfully to: ${INSTALL_PATH}"
-info "Run 'hello --version' in a new shell/terminal tab to verify."
