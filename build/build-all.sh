@@ -6,8 +6,6 @@ GREEN='\033[0;32m'
 CYAN='\033[0;36m'
 NC='\033[0m' 
 
-COMMIT=$(git rev-parse --short=10 HEAD)
-
 mkdir -p build/compiled
 
 TARGETS=(
@@ -20,7 +18,6 @@ TARGETS=(
 )
 
 echo -e "${CYAN}🏗 Starting build process...${NC}"
-echo -e "${CYAN}▸ Commit: ${COMMIT}${NC}\n"
 
 for target in "${TARGETS[@]}"; do
   IFS='/' read -ra parts <<< "$target"
@@ -28,8 +25,8 @@ for target in "${TARGETS[@]}"; do
   GOARCH="${parts[1]}"
   EXT="${parts[2]:-}"
 
-  OUTPUT="gct-${GOOS}-${GOARCH}${EXT}"
-  LDFLAGS="-s -w -X main.VerCommit=${COMMIT}"
+  OUTPUT="hello-${GOOS}-${GOARCH}${EXT}"
+  LDFLAGS="-s -w"
 
   echo -e "${CYAN}🔧 Building ${OUTPUT}...${NC}"
   
