@@ -182,6 +182,8 @@ install({
 })
 ```
 
+The official final `pkg.lua` is [this](./app/hello.pkg.lua).
+
 ## Building
 
 Now you have a complete `hello.pkg.lua` package.
