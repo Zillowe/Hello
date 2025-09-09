@@ -167,7 +167,7 @@ install({
 		url = git_url, -- cloning the git repo, we can specify a branch or a tag
 		platforms = { "linux", "macos", "windows" },
 		build_commands = {
-			'go build -o hello -ldflags="-s -w" src',
+			'go build -o hello -ldflags="-s -w" ./src',
 		},
 		bin_path = (function() -- the final binary path
           local bin

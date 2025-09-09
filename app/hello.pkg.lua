@@ -117,7 +117,7 @@ install({
     url = git_url,
     platforms = { "linux", "macos", "windows" },
     build_commands = {
-      'go build -o hello -ldflags="-s -w" src',
+      'go build -o hello -ldflags="-s -w" ./src',
     },
     bin_path = (function()
       local bin
