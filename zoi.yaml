@@ -1,1 +1,24 @@
 package: "@zillowe/hello"
+
+name: "Hello"
+
+commands:
+  - cmd: "build"
+    run: "./build/build-all.sh"
+  - cmd: "archive"
+    run: "./build/archive.sh"
+  - cmd: "sign-arc"
+    run: "./build/sign-arc.sh"
+  - cmd: "sign-bin"
+    run: "./build/sign-bin.sh"
+
+environments:
+  - name: "Prepare"
+    cmd: "pre"
+    run:
+      [
+        "zoi run build",
+        "zoi run archive",
+        "zoi run sign-arc",
+        "zoi run sign-bin",
+      ]
