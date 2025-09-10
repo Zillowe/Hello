@@ -1,2 +1,3 @@
 build/compiled
 build/archived
+.env

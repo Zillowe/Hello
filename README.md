@@ -1,6 +1,6 @@
 # Hello, World!
 
-A program written in Go to only print `Hello World, from Zoi!` and handle errors.
+A program written in Zig to only print `Hello, World!` and handle errors.
 This program is used as an example to packaging software.
 In this guide we'll package this program to Zoi `hello.pkg.lua` format with three installation methods:
 
@@ -21,7 +21,7 @@ zoi install @zillowe/hello
 
 ## Setup
 
-To follow this guide first you need to have [`zoi`](https://github.com/Zillowe/Zoi) installed, and `go` installed.
+To follow this guide first you need to have [`zoi`](https://github.com/Zillowe/Zoi) installed, and `zig` installed.
 
 ## Packaging
 
@@ -32,7 +32,7 @@ Now lets start by creating `hello.pkg.lua` and specify some metadata, Lua is the
 ```lua
 local repo_owner = "Zillowe"
 local repo_name = "Hello"
-local version = "2.0.0" -- latest version
+local version = "3.0.0" -- latest version
 local git_url = "https://github.com/" .. repo_owner .. "/" .. repo_name .. ".git"
 local release_base_url = "https://github.com/" .. repo_owner .. "/" .. repo_name .. "/releases/download/v" .. version
 
@@ -82,7 +82,7 @@ Next lets define build dependencies:
 dependencies({
 	build = { -- build time dependencies, installed when building it from source
 		required = { -- required build time dependencies, not optional
-		  "native:go" -- this will install 'go' package from the native package manager, since go is pretty much widely available theres no need* to create a Zoi package for it
+		  "native:zig" -- this will install 'zig' package from the native package manager, since zig is pretty much widely available theres no need* to create a Zoi package for it
 		  -- after the first 'sync' run 'zoi info' to see the list of available package managers and the native one for you
 		},
 	},
@@ -167,7 +167,7 @@ install({
 		url = git_url, -- cloning the git repo, we can specify a branch or a tag
 		platforms = { "linux", "macos", "windows" },
 		build_commands = {
-			'go build -o hello -ldflags="-s -w" ./src',
+			'zig build-exe src/main.zig -O ReleaseSmall --name hello',
 		},
 		bin_path = (function() -- the final binary path
           local bin

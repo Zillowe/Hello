@@ -4,46 +4,48 @@ set -euo pipefail
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 CYAN='\033[0;36m'
-NC='\033[0m' 
+NC='\033[0m'
 
 mkdir -p build/compiled
 
 TARGETS=(
-  "linux/amd64/"
-  "linux/arm64/"
-  "darwin/amd64/"
-  "darwin/arm64/"
-  "windows/amd64/.exe"
-  "windows/arm64/.exe"
+  "x86_64-linux-gnu"
+  "aarch64-linux-gnu"
+  "x86_64-macos-none"
+  "aarch64-macos-none"
+  "x86_64-windows-gnu"
+  "aarch64-windows-gnu"
 )
 
-echo -e "${CYAN}🏗 Starting build process...${NC}"
+echo -e "${CYAN}🏗 Starting Zig build process...${NC}"
 
 for target in "${TARGETS[@]}"; do
-  IFS='/' read -ra parts <<< "$target"
-  GOOS="${parts[0]}"
-  GOARCH="${parts[1]}"
-  EXT="${parts[2]:-}"
-
-  OUTPUT="hello-${GOOS}-${GOARCH}${EXT}"
-  LDFLAGS="-s -w"
-
-  echo -e "${CYAN}🔧 Building ${OUTPUT}...${NC}"
+  IFS='-' read -ra parts <<< "$target"
+  OS="${parts[1]}"
+  ARCH="${parts[0]}"
+  EXT=""
+  if [[ "$OS" == "windows" ]]; then
+    EXT=".exe"
+  fi
   
-  if ! GOOS=$GOOS GOARCH=$GOARCH go build \
-    -ldflags "$LDFLAGS" \
-    -o "build/compiled/${OUTPUT}" \
-    ./src; then
-    echo -e "${RED}❌ Build failed for ${OUTPUT}${NC}"
+  OUTPUT="hello-${ARCH}-${OS}${EXT}"
+  OUTPUT_PATH="build/compiled/${OUTPUT}"
+
+  echo -e "${CYAN}🔧 Building for ${target}...${NC}"
+
+  if ! zig build-exe src/main.zig \
+    -target "$target" \
+    -O ReleaseSmall \
+    -femit-bin="$OUTPUT_PATH"; then
+    echo -e "${RED}❌ Build failed for ${target}${NC}"
     exit 1
   fi
-
-  if [[ "$GOOS" != "windows" ]]; then
-    chmod +x "build/compiled/${OUTPUT}"
+  
+  if [[ "$OS" != "windows" ]]; then
+    chmod +x "$OUTPUT_PATH"
   fi
 done
 
 echo -e "\n${GREEN}✅ All builds completed successfully!${NC}"
 echo -e "${CYAN}Output files in ./build/compiled directory:${NC}"
 ls -lh build/compiled
-
