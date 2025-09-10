@@ -50,7 +50,7 @@ install({
     url = (function()
       return release_base_url .. "/hello-" .. get_mapped_os() .. "-" .. SYSTEM.ARCH
     end)(),
-    platforms = { "linux", "macos", "windows" },
+    platforms = { "all" },
     checksums = (function()
       return release_base_url .. "/checksums-512.txt"
     end)(),
@@ -77,7 +77,7 @@ install({
       end
       return release_base_url .. "/hello-" .. get_mapped_os() .. "-" .. SYSTEM.ARCH .. "." .. ext
     end)(),
-    platforms = { "linux", "macos", "windows" },
+    platforms = { "all" },
     checksums = (function()
       return release_base_url .. "/checksums-512.txt"
     end)(),
@@ -115,7 +115,7 @@ install({
     name = "Build from source",
     type = "source",
     url = git_url,
-    platforms = { "linux", "macos", "windows" },
+    platforms = { "all" },
     build_commands = {
       "zig build-exe src/main.zig -O ReleaseSmall --name hello",
     },
