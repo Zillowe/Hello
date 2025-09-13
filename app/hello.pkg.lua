@@ -1,6 +1,6 @@
 local repo_owner = "Zillowe"
 local repo_name = "Hello"
-local version = "3.0.0"
+local version = SYSTEM.VERSION or "3.0.0"
 local git_url = "https://github.com/" .. repo_owner .. "/" .. repo_name .. ".git"
 local release_base_url = "https://github.com/" .. repo_owner .. "/" .. repo_name .. "/releases/download/v" .. version
 
@@ -117,7 +117,7 @@ install({
     url = git_url,
     platforms = { "all" },
     build_commands = {
-      "zig build-exe src/main.zig -O ReleaseSmall --name hello",
+      "zig build-exe main.zig -O ReleaseSmall --name hello",
     },
     bin_path = (function()
       local bin

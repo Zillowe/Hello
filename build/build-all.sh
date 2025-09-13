@@ -33,7 +33,7 @@ for target in "${TARGETS[@]}"; do
 
   echo -e "${CYAN}🔧 Building for ${target}...${NC}"
 
-  if ! zig build-exe src/main.zig \
+  if ! zig build-exe main.zig \
     -target "$target" \
     -O ReleaseSmall \
     -femit-bin="$OUTPUT_PATH"; then
