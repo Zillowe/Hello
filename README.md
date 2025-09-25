@@ -52,8 +52,8 @@ local function get_mapped_os()
 end
 
 package({
-	name = "hello",
-	repo = "zillowe",
+	name = "hello", -- the package name, it also must be like this when publishing it to a registry: '<package>/<package>.pkg.lua'
+	repo = "zillowe", -- the packages repo, if you're publishing it on Zoidberg registry then take a look at the README of it
 	version = version,
 	description = "Hello World",
 	website = "https://github.com/Zillowe/Hello",
