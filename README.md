@@ -202,12 +202,12 @@ Now run this command to build the package:
 zoi package build hello.meta.json # you can specify '--platform', The platform to build for (e.g. 'linux-amd64', 'windows-arm64', 'all', 'current'). Can be specified multiple times [default: current]
 ```
 
-This will build a package archive `hello-2.0.0-{os}-{arch}.pkg.tar.zst` and contains the binary and the manual if available, the build command will verify the checksums and the signatures.
+This will build a package archive `hello-3.0.0-{os}-{arch}.pkg.tar.zst` and contains the binary and the manual if available, the build command will verify the checksums and the signatures.
 
 To install the archive run this command:
 
 ```sh
-zoi package install hello-2.0.0-{os}-{arch}.pkg.tar.zst # you can specify '--scope', The scope to install the package to (user or system-wide) [default: user]
+zoi package install hello-3.0.0-{os}-{arch}.pkg.tar.zst # you can specify '--scope', The scope to install the package to (user or system-wide) [default: user]
 ```
 
 This command will install the binary to its location and will install the manual if available.
