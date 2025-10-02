@@ -1,4 +1,4 @@
-package: "#zoidberg@zillowe/hello"
+package: "./app/hello.pkg.lua"
 
 name: "Hello"
 
