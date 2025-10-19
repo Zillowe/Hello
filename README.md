@@ -1,213 +1,173 @@
 # Hello, World!
 
-A program written in Zig to only print `Hello, World!` and handle errors.
-This program is used as an example to packaging software.
-In this guide we'll package this program to Zoi `hello.pkg.lua` format with three installation methods:
+A program written in Zig to only print `Hello, World!` and handle errors. This program is used as an example to demonstrate how to package software for Zoi.
 
-- Compressed Binary
-- Binary
-- Source
-
-Also we'll guide you on how to build a `hello.pkg.tar.zst` package that contains everything to install the package offline locally for your system.
+In this guide, we'll walk through the provided `app/hello.pkg.lua` file to understand how it's packaged for Zoi, supporting both pre-compiled and from-source installation methods.
 
 ## Installation
 
 You can install this program using Zoi by running one of these commands:
 
 ```sh
-zoi install --repo Zillowe/Hello # this command just redirect to the bellow command
+zoi install --repo Zillowe/Hello # This command redirects to the one below
 zoi install @zillowe/hello
 ```
 
 ## Setup
 
-To follow this guide first you need to have [`zoi`](https://github.com/Zillowe/Zoi) installed, and `zig` installed.
+To follow this guide and build the package yourself, you need to have [`zoi`](https://github.com/Zillowe/Zoi) and `zig` installed.
 
-## Packaging
+## Packaging `hello.pkg.lua` Explained
 
-Now let's start packaging this program from this repo and its releases.
+Zoi uses Lua scripts (`.pkg.lua` files) to define packages. Let's break down the official `hello.pkg.lua` file.
 
-Now lets start by creating `hello.pkg.lua` and specify some metadata, Lua is the language Zoi uses for packaging software.
+### 1. Helper Variables and Functions
+
+The script starts by defining some local variables and helper functions to keep the code clean. This is standard Lua practice.
 
 ```lua
 local repo_owner = "Zillowe"
 local repo_name = "Hello"
-local version = SYSTEM.VERSION or "3.0.0" -- user-specified version or latest version
+local version = ZOI.VERSION or "3.0.0" -- Use version from Zoi runtime or default
 local git_url = "https://github.com/" .. repo_owner .. "/" .. repo_name .. ".git"
 local release_base_url = "https://github.com/" .. repo_owner .. "/" .. repo_name .. "/releases/download/v" .. version
 
+-- Helper to map Zoi's OS name to the one used in the release assets
 local platform_map = {
-	macos = "darwin", -- this package uses 'darwin' instead of 'macos' and Zoi uses 'macos' by default, this and the other helper functions will help replacing 'macos' with 'darwin'
+	macos = "darwin",
 }
+-- ... more helper functions
+```
 
-local function get_mapped_platform()
-	local current_platform = SYSTEM.OS .. "-" .. SYSTEM.ARCH
-	return platform_map[current_platform] or platform_map[SYSTEM.OS] or current_platform
-end
+### 2. The `metadata` Function
 
--- Zoi provides SYSTEM.[OS, ARCH, DISTRO]
+This is the heart of the package, defining all its core properties.
 
-local function get_mapped_os()
-	return get_mapped_platform():match("([^%-]+)")
-end
-
-package({
-	name = "hello", -- the package name, it also must be like this when publishing it to a registry: '<package>/<package>.pkg.lua'
-	repo = "zillowe", -- the packages repo, if you're publishing it on Zoidberg registry then take a look at the README of it
+```lua
+metadata({
+	name = "hello",
+	repo = "zillowe",
 	version = version,
 	description = "Hello World",
 	website = "https://github.com/Zillowe/Hello",
 	git = git_url,
-	man = "https://raw.githubusercontent.com/Zillowe/Hello/refs/heads/main/app/man.md", -- manual page, viewable with `zoi man` command
-	maintainer = {
-		name = "Your Name",
-		email = "your@email.com",
-	},
-	author = {
-		name = "Zillowe Foundation",
-		website = "https://zillowe.qzz.io",
-		email = "contact@zillowe.qzz.io",
-		key = "https://zillowe.pages.dev/keys/zillowe-main.asc", -- for verifying signature
-		key_name = "zillowe-main", -- specifying public key name so if its already in `zoi pgp` to use it instead of reimporting it
-	},
+	man = "https://raw.githubusercontent.com/Zillowe/Hello/refs/heads/main/app/man.md",
+	maintainer = { ... },
+	author = { ... },
 	license = "Apache-2.0",
-	bins = { "hello" }, -- binaries this package provides
-	conflicts = { "hello" }, -- binaries this package conflicts with
+	bins = { "hello" }, -- The executable(s) this package provides
+	conflicts = { "hello" }, -- Other commands this package might conflict with
+	types = { "source", "pre-compiled" }, -- The build methods this package supports
 })
 ```
 
-Next lets define build dependencies:
+### 3. The `dependencies` Function
+
+Here, we define any build-time or runtime dependencies. This package needs `zig` to build from source.
 
 ```lua
 dependencies({
-	build = { -- build time dependencies, installed when building it from source
-		required = { -- required build time dependencies, not optional
-		  "native:zig" -- this will install 'zig' package from the native package manager, since zig is pretty much widely available theres no need* to create a Zoi package for it
-		  -- after the first 'sync' run 'zoi info' to see the list of available package managers and the native one for you
+	build = { -- build-time dependencies
+		required = {
+		  "native:zig" -- Install 'zig' from the native system package manager
 		},
 	},
 })
 ```
 
-Now lets define the installation methods for this package inside a `install({})` block:
+### 4. The `prepare` Function
+
+This function prepares the source code for building. It's called first in the build process. The logic is branched based on the `BUILD_TYPE` global variable, which is set by the `--type` flag of the `zoi package build` command.
 
 ```lua
-install({
-	selectable = true, -- this means you can select which installation method you want by running the install command with '-i' flag
-	{
-		name = "Binary", -- name of the installation method
-		type = "binary", -- type of the installation method
-		url = (function() -- URL to the file
-			return release_base_url .. "/hello-" .. get_mapped_os() .. "-" .. SYSTEM.ARCH
-		end)(),
-		platforms = { "all" }, -- platforms this package support, [all, os-arch, os]
-		checksums = (function() -- optional checksums verification
-			return release_base_url .. "/checksums-512.txt"
-		end)(),
-		sigs = { -- optional signature verification against public key in maintainer or author fields
-			{
-				file = (function()
-					return "hello-" .. get_mapped_os() .. "-" .. SYSTEM.ARCH
-				end)(),
-				sig = (function()
-					return release_base_url .. "/hello-" .. get_mapped_os() .. "-" .. SYSTEM.ARCH .. ".sig"
-				end)(),
-			},
-		},
-	},
-	{
-		name = "Compressed Binary", -- same as above
-		type = "com_binary",
-		url = (function()
-			local ext -- the extension type, Zoi supports [zip, tar.xz, tar.gz, tar.zst]
-			if SYSTEM.OS == "windows" then
-				ext = "zip"
-			else
-				ext = "tar.xz"
-			end
-			return release_base_url .. "/hello-" .. get_mapped_os() .. "-" .. SYSTEM.ARCH .. "." .. ext
-		end)(),
-		platforms = { "all" },
-		checksums = (function()
-			return release_base_url .. "/checksums-512.txt"
-		end)(),
-		sigs = {
-			{
-				file = (function()
-					local ext
-					if SYSTEM.OS == "windows" then
-						ext = "zip"
-					else
-						ext = "tar.xz"
-					end
-					return "hello-" .. get_mapped_os() .. "-" .. SYSTEM.ARCH .. "." .. ext
-				end)(),
-				sig = (function()
-					local ext
-					if SYSTEM.OS == "windows" then
-						ext = "zip"
-					else
-						ext = "tar.xz"
-					end
-					return release_base_url
-							.. "/hello-"
-							.. get_mapped_os()
-							.. "-"
-							.. SYSTEM.ARCH
-							.. "."
-							.. ext
-							.. ".sig"
-				end)(),
-			},
-		},
-	},
-	{
-		name = "Build from source",
-		type = "source", -- building from source
-		url = git_url, -- cloning the git repo, we can specify a branch or a tag
-		platforms = { "all" },
-		build_commands = {
-			'zig build-exe main.zig -O ReleaseSmall --name hello',
-		},
-		bin_path = (function() -- the final binary path
-          local bin
-					if SYSTEM.OS == "windows" then
-						bin = "hello.exe"
-					else
-						bin = "hello"
-					end
-					return bin
-				end)(),
-	},
-})
+function prepare()
+	-- For pre-compiled builds, download and extract the release archive
+	if BUILD_TYPE == "pre-compiled" then
+		-- ... constructs URL for the release asset ...
+		local url = release_base_url .. "/" .. file_name
+		UTILS.EXTRACT(url, "precompiled") -- Download and extract
+
+	-- For source builds, clone the git repository
+	elseif BUILD_TYPE == "source" then
+		cmd("git clone " .. PKG.git .. " " .. BUILD_DIR .. "/source")
+		cmd("cd " .. BUILD_DIR .. "/source && zig build-exe main.zig -O ReleaseSmall --name hello")
+	end
+end
 ```
 
-The official final `pkg.lua` is [this](./app/hello.pkg.lua).
+### 5. The `package` Function
 
-## Building
+After `prepare`, the `package` function is called. Its job is to copy the final build artifacts into the staging area using the `zcp` command. The `${pkgstore}` variable points to the final installation directory.
 
-Now you have a complete `hello.pkg.lua` package.
+```lua
+function package()
+	local bin_name = "hello"
+	if SYSTEM.OS == "windows" then
+		bin_name = "hello.exe"
+	end
 
-Now we need to run this command:
+	if BUILD_TYPE == "pre-compiled" then
+		-- Find the binary in the extracted directory
+		local bin_path = UTILS.FIND.file("precompiled", bin_name)
+		zcp(bin_path, "${pkgstore}/bin/" .. bin_name)
+	elseif BUILD_TYPE == "source" then
+		-- Copy the binary from the build directory
+		zcp("source/" .. bin_name, "${pkgstore}/bin/" .. bin_name)
+	end
+end
+```
+
+### 6. The `verify` Function
+
+This optional step is crucial for security. It runs after `package` to verify the integrity of the downloaded files. If this function returns `false`, the build is aborted.
+
+```lua
+function verify()
+	if BUILD_TYPE == "pre-compiled" then
+		-- ... logic to get checksum and signature files ...
+
+		-- Verify checksum
+		if not verifyHash(file_path, "sha512-" .. expected_checksum) then
+			return false
+		end
+
+		-- Verify PGP signature
+		if not verifySignature(file_path, sig_path, "zillowe-main") then
+			return false
+		end
+
+		return true
+	end
+	return true -- Always pass for source builds in this example
+end
+```
+
+## Building the Package
+
+Now that you have a complete `hello.pkg.lua` file, you can build it into a distributable package archive.
+
+Run the `zoi package build` command, specifying a build type.
 
 ```sh
-zoi package meta hello.pkg.lua # you can specify '--type' to use that installation methods instead, by default: 1. Compressed Binary, 2. Binary, 3. Source
+# Build the pre-compiled version
+zoi package build ./app/hello.pkg.lua --type pre-compiled
+
+# Or, build from source
+zoi package build ./app/hello.pkg.lua --type source
 ```
 
-This command will generate a `hello.meta.json` that contains all the metadata we need to build it.
+This command will:
 
-Now run this command to build the package:
+1.  Create a temporary build environment.
+2.  Run the `prepare`, `package`, and `verify` functions from your script.
+3.  Bundle the results into a `hello-3.0.0-{os}-{arch}.pkg.tar.zst` archive in the same directory.
+
+## Installing the Local Archive
+
+You can test your final package archive by installing it locally.
 
 ```sh
-zoi package build hello.meta.json # you can specify '--platform', The platform to build for (e.g. 'linux-amd64', 'windows-arm64', 'all', 'current'). Can be specified multiple times [default: current]
+zoi package install ./hello-3.0.0-linux-amd64.pkg.tar.zst
 ```
 
-This will build a package archive `hello-3.0.0-{os}-{arch}.pkg.tar.zst` and contains the binary and the manual if available, the build command will verify the checksums and the signatures.
-
-To install the archive run this command:
-
-```sh
-zoi package install hello-3.0.0-{os}-{arch}.pkg.tar.zst # you can specify '--scope', The scope to install the package to (user or system-wide) [default: user]
-```
-
-This command will install the binary to its location and will install the manual if available.
+This command unpacks the archive and installs the package just as if it were downloaded from a registry, allowing you to perform a final end-to-end test.
